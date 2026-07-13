@@ -24,7 +24,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
+          
+      - name: Debug npm registry
+        run: |
+          npm config get registry
+          npm view @tencent/trpc-claudecode --registry=https://mirrors.tencent.com/npm/ || true
+          npm search trpc-claudecode --registry=https://mirrors.tencent.com/npm/ || true
+            
       - name: Install trpc-claudecode
         run: npm install -g --registry=https://mirrors.tencent.com/npm/ @tencent/trpc-claudecode
 
