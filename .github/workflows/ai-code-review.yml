@@ -1,0 +1,61 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  ai-code-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install trpc-claudecode
+        run: npm install -g --registry=https://mirrors.tencent.com/npm/ @tencent/trpc-claudecode
+
+      - name: Generate PR diff
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
+
+      - name: Run AI code review
+        env:
+          TRPC_CLAUDECODE_BASE_URL: ${{ secrets.TRPC_CLAUDECODE_BASE_URL }}
+          TRPC_CLAUDECODE_API_KEY: ${{ secrets.TRPC_CLAUDECODE_API_KEY }}
+          TRPC_CLAUDECODE_MODEL: ${{ secrets.TRPC_CLAUDECODE_MODEL }}
+        run: |
+          trpc-claudecode -p "$(cat .github/ai-review-prompt.md)" > review.md
+
+      - name: Comment review result on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let body = fs.readFileSync('review.md', 'utf8').trim();
+
+            if (!body) {
+              body = 'AI Code Review 未生成有效结果，请检查 GitHub Actions 日志。';
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## AI Code Review\n\n${body}`
+            });
