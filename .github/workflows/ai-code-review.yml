@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   ai-code-review:
+    if: ${{ !contains(github.event.pull_request.title, '--no-ai-review') }}
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
 
@@ -62,9 +63,23 @@ jobs:
               body = 'AI Code Review 未生成有效结果，请检查 GitHub Actions 日志。';
             }
 
+            const { owner, repo } = context.repo;
+            const sha = context.payload.pull_request.head.sha;
+
+            body = body.replace(
+              /`((?:\.?[\w.-]+\/)*[\w.-]+\.[A-Za-z0-9_+-]+):(\d+)(?:-(\d+))?`/g,
+              (match, filePath, startLine, endLine) => {
+                const encodedPath = filePath.split('/').map(encodeURIComponent).join('/');
+                const label = `${filePath}:${startLine}${endLine ? `-${endLine}` : ''}`;
+                const lineAnchor = `L${startLine}${endLine ? `-L${endLine}` : ''}`;
+                const url = `https://github.com/${owner}/${repo}/blob/${sha}/${encodedPath}#${lineAnchor}`;
+                return `[\`${label}\`](${url})`;
+              }
+            );
+
             await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner,
+              repo,
               issue_number: context.issue.number,
               body: `## AI Code Review\n\n${body}`
             });
