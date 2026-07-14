@@ -25,6 +25,7 @@ jobs:
         with:
           node-version: 20
           
+      # 调试 npm 镜像源，下载trpc-claudecode包
       - name: Debug npm registry
         run: |
           npm config get registry
@@ -39,6 +40,7 @@ jobs:
           git fetch origin ${{ github.base_ref }}
           git diff origin/${{ github.base_ref }}...HEAD > pr.diff
 
+      # 运行 AI 代码审查
       - name: Run AI code review
         env:
           TRPC_CLAUDECODE_BASE_URL: ${{ secrets.TRPC_CLAUDECODE_BASE_URL }}
@@ -47,6 +49,7 @@ jobs:
         run: |
           trpc-claudecode -p "$(cat .github/ai-review-prompt.md)" > review.md
 
+      # 在 PR 中评论审查结果
       - name: Comment review result on PR
         uses: actions/github-script@v7
         with:
@@ -65,3 +68,8 @@ jobs:
               issue_number: context.issue.number,
               body: `## AI Code Review\n\n${body}`
             });
+      
+      - name: Cleanup workspace
+        if: always()
+        run: |
+          git clean -ffdx
