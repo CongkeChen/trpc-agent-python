@@ -69,6 +69,13 @@ jobs:
               body: `## AI Code Review\n\n${body}`
             });
       
+      - name: Fail on critical findings
+        run: |
+          if grep -q "🚨 Critical" review.md; then
+            echo "Critical issues found in AI Code Review"
+            exit 1
+          fi
+
       - name: Cleanup workspace
         if: always()
         run: |
